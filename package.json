@@ -1,0 +1,5 @@
+{
+  "name": "acme",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.7.0"
+}
