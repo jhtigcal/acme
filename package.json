@@ -1,5 +1,9 @@
 {
   "name": "acme",
   "version": "1.0.0",
+  "description": "A sample project for demonstrating worker architecture in React SPA",
+  "private": true,
+  "author": "jhtigcal",
+  "license": "MIT",
   "packageManager": "pnpm@10.7.0"
 }
