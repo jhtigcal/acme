@@ -34,10 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSalesData } from "@/hooks/sales";
+import { useStats } from "@/hooks/stats";
 import { useActiveTeam, useUpdateActiveTeam } from "@/hooks/team";
 import { useTeams } from "@/workers/use-worker-query";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2Icon } from "lucide-react";
 import * as React from "react";
 import { type DateValue } from "react-aria-components";
 
@@ -57,15 +57,11 @@ export function Dashboard() {
   const [selectedDateRange, setSelectedDateRange] =
     React.useState<RangeValue<DateValue> | null>(null);
 
-  const { data: salesData } = useSalesData({
+  const query = useStats({
     teamId: activeTeam?.id ?? null,
     dateRange: selectedDateRange,
     marketplaces: selectedMarketplaces,
   });
-
-  React.useEffect(() => {
-    console.log("Sales data updated:", salesData);
-  }, [salesData]);
 
   return (
     <main className="max-w-5xl mx-auto my-8">
@@ -77,7 +73,7 @@ export function Dashboard() {
             on simplicity and performance.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-8">
           <div className="flex gap-4 items-end">
             <Select
               className="w-[320px]"
@@ -184,8 +180,67 @@ export function Dashboard() {
                 </DatePickerContent>
               </DateRangePicker>
             )}
+            {query.isFetching && (
+              <Loader2Icon className="size-6 animate-spin text-muted-foreground mb-2" />
+            )}
           </div>
-          <div></div>
+          <div className="grid grid-cols-4 gap-4">
+            <Card>
+              <CardHeader>
+                <CardDescription>Revenue</CardDescription>
+                <CardTitle>
+                  {(query.data?.revenue || 0).toLocaleString(undefined, {
+                    style: "currency",
+                    currency: "USD",
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 2,
+                    notation: "compact",
+                  })}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Profit</CardDescription>
+                <CardTitle>
+                  {(query.data?.profit || 0).toLocaleString(undefined, {
+                    style: "currency",
+                    currency: "USD",
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 2,
+                    notation: "compact",
+                  })}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Expenses</CardDescription>
+                <CardTitle>
+                  {(query.data?.expenses || 0).toLocaleString(undefined, {
+                    style: "currency",
+                    currency: "USD",
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 2,
+                    notation: "compact",
+                  })}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardDescription>Units Sold</CardDescription>
+                <CardTitle>
+                  {(query.data?.unitsSold || 0).toLocaleString(undefined, {
+                    style: "decimal",
+                    notation: "compact",
+                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 2,
+                  })}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </div>
         </CardContent>
       </Card>
     </main>

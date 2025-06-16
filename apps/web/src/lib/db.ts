@@ -27,7 +27,7 @@ db.version(1).stores({
     [teamId+date+marketplace],
     [teamId+date]
   `,
-  products: "id, teamId, marketplace",
+  products: "id, [teamId+marketplace]",
   exchangeRates: "date",
 });
 
