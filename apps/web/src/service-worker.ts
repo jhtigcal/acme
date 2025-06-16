@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import { db } from "./lib/db";
+
 declare const self: ServiceWorkerGlobalScope;
 
 let activeTeam: string | null = null;
@@ -106,19 +108,16 @@ const deconstructSalesFilterCombinations = (
   return filters;
 };
 
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  const match = url.pathname.match(/\/teams\/([^/]+)\/sales/);
-  if (!match || event.request.method !== "GET") return;
-
-  const teamId = match[1];
-  const origin = url.origin;
-
-  if (!teamId || teamId !== activeTeam) {
-    console.log(`Skipping fetch for team ${teamId}`);
-    return event.respondWith(fetch(event.request));
+async function handleSalesRequest(
+  request: Request,
+  {
+    teamId,
+  }: {
+    teamId: string;
   }
+) {
+  const url = new URL(request.url);
+  const origin = url.origin;
 
   const filters = {
     team: new Set([teamId]),
@@ -135,27 +134,60 @@ self.addEventListener("fetch", (event) => {
   const toFetchCombinations = allCombinations.difference(fetchedSales);
 
   if (!toFetchCombinations.size) {
+    return new Response(null, {
+      status: 204,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const newFilters = deconstructSalesFilterCombinations(toFetchCombinations);
+  const query = new URLSearchParams();
+
+  newFilters.dates.forEach((d) => query.append("dates", d));
+  newFilters.marketplaces.forEach((m) => query.append("marketplaces", m));
+
+  toFetchCombinations.forEach((c) => fetchedSales.add(c));
+  const fetchUrl = `${origin}/api/teams/${teamId}/sales?${query.toString()}`;
+  const response = await fetch(fetchUrl, {
+    headers: request.headers,
+  });
+
+  if (!response.ok) {
+    return response;
+  }
+
+  const data = await response.json();
+
+  db.sales.bulkPut(data);
+
+  // Return a 204 No Content response
+  // to indicate that the data has been fetched and stored
+  return new Response(null, {
+    status: 204,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
+  const match = url.pathname.match(/\/teams\/([^/]+)\/sales/);
+  if (!match || event.request.method !== "GET") return;
+
+  const teamId = match[1];
+
+  if (!teamId || teamId !== activeTeam) {
     return event.respondWith(
       new Response(null, {
-        status: 204,
+        status: 404,
         headers: { "Content-Type": "application/json" },
       })
     );
   }
 
-  const newFilters = deconstructSalesFilterCombinations(toFetchCombinations);
-
-  const query = new URLSearchParams();
-  newFilters.dates.forEach((d) => query.append("dates", d));
-  newFilters.marketplaces.forEach((m) => query.append("marketplaces", m));
-
-  toFetchCombinations.forEach((c) => fetchedSales.add(c));
-
-  const fetchUrl = `${origin}/api/teams/${teamId}/sales?${query.toString()}`;
-
   event.respondWith(
-    fetch(fetchUrl, {
-      headers: event.request.headers,
+    handleSalesRequest(event.request, {
+      teamId,
     })
   );
 });

@@ -1,4 +1,5 @@
 import { getDatesInRange } from "@/lib/dates";
+import { db } from "@/lib/db";
 import { honoClient } from "@/lib/hono-client";
 import { defineRoute, defineRouter } from "twrpc";
 import { z } from "zod";
@@ -29,7 +30,9 @@ const router = defineRouter({
           end: new Date(input.dateRange.end),
         });
 
-        const response = await honoClient.api.teams[`:teamId`].sales.$get({
+        // Make the API call to fetch sales data
+        // We don't care about the response since we will be fetching it from the IndexDB
+        await honoClient.api.teams[`:teamId`].sales.$get({
           param: {
             teamId: input.teamId,
           },
@@ -39,15 +42,21 @@ const router = defineRouter({
           },
         });
 
-        if (response.status === 200) {
-          return response.json();
-        }
+        const data = await Promise.all(
+          input.marketplaces.map((marketplace) =>
+            db.sales
+              .where("[teamId+date+marketplace]")
+              .between(
+                [input.teamId, input.dateRange.start, marketplace],
+                [input.teamId, input.dateRange.end, marketplace],
+                true,
+                true
+              )
+              .toArray()
+          )
+        );
 
-        if (response.status === 204) {
-          return [];
-        }
-
-        throw new Error(`Failed to fetch sales data: ${response.statusText}`);
+        return data.flat();
       },
     }),
   }),
