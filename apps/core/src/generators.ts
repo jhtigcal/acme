@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { MARKETPLACES, START_DATE, CURRENCIES } from "./constants.js";
+import { CURRENCIES, MARKETPLACES, START_DATE, TODAY } from "./constants.js";
 import type {
   ICurrency,
   IExchangeRate,
@@ -41,6 +41,11 @@ function generateProducts(teams: ITeam[]): IProduct[] {
             max: 50,
             fractionDigits: 2,
           }),
+          price: faker.number.float({
+            min: 10,
+            max: 100,
+            fractionDigits: 2,
+          }),
           currency: getCurrencyByMarketplace(marketplace),
         });
       }
@@ -50,7 +55,7 @@ function generateProducts(teams: ITeam[]): IProduct[] {
 }
 
 function generateCurrencyRates(): IExchangeRate[] {
-  const days = 365;
+  const days = TODAY.diff(START_DATE).days + 1; // Include today
   const data: IExchangeRate[] = [];
 
   for (let i = 0; i < days; i++) {
@@ -77,7 +82,12 @@ function generateSalesData(
   teams: ITeam[],
   products: IProduct[]
 ): ISalesDataItem[] {
+  const days = TODAY.diff(START_DATE, "days").days + 1; // Include today
   const data: ISalesDataItem[] = [];
+  console.log(
+    `Generating sales data for ${teams.length} teams over ${days} days...\n`,
+    `From ${START_DATE.toISODate()} to ${TODAY.toISODate()}`
+  );
 
   for (const team of teams) {
     for (const marketplace of team.marketplaces) {
@@ -85,8 +95,9 @@ function generateSalesData(
         (p) => p.teamId === team.id && p.marketplace === marketplace
       );
 
-      for (let i = 0; i < 365; i++) {
+      for (let i = 0; i < days; i++) {
         const date = START_DATE.plus({ days: i }).toISODate();
+        const unitsSold = faker.number.int({ min: 0, max: 1000 });
 
         const salesForDay = teamProducts.map((product) => ({
           teamId: team.id,
@@ -94,7 +105,7 @@ function generateSalesData(
           date,
           productId: product.id,
           unitsSold: faker.number.int({ min: 0, max: 20 }),
-          revenue: faker.number.float({ min: 0, max: 500, fractionDigits: 2 }),
+          revenue: product.price * unitsSold,
           currency: product.currency,
         }));
 
@@ -118,9 +129,9 @@ function getCurrencyByMarketplace(marketplace: IMarketplace): ICurrency {
 }
 
 export {
-  generateTeams,
-  generateProducts,
   generateCurrencyRates,
+  generateProducts,
   generateSalesData,
+  generateTeams,
   getCurrencyByMarketplace,
 };
